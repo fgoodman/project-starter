@@ -1,11 +1,12 @@
 # Recipes
 
-Guides for features that only some projects need, so each one is set up the same way every time. They're drawn from Percolatus, Nomp and Rummy Dummy.
+Guides for features that aren't in the starter's code, so each one is set up the same way every time. They're drawn from Percolatus, Nomp and Rummy Dummy.
 
 Paths like `percolatus/client/src/lib/version.ts` are relative to the folder holding those projects. Copy from the current version of the file, then remove anything specific to that app.
 
 | Recipe | Use it when |
 |---|---|
+| [Visual tests](visual-tests.md) | Every project, starting with its first real page |
 | [Deploy](deploy.md) | The project is ready to go live |
 | [Firebase Auth](firebase-auth.md) | The app has user accounts |
 | [API client](api-client.md) | The client calls the Worker |

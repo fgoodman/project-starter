@@ -92,6 +92,23 @@ When a project is created from this starter, replace this README with one for th
 - Keep a local server and mock data ready, and pull up the exact state we're discussing.
 - Check UI at phone width as well as desktop.
 
+## Visual tests
+
+Every project uses Playwright for visual diff testing on all page states. Set it up with `docs/recipes/visual-tests.md`. When a change adds a page state, add it to the visual tests in the same change.
+
+## Visual changes
+
+When a change affects how the app looks, show before and after screenshots in the conversation. Don't just describe the change.
+
+1. Run the visual tests before approving anything. The failures show which states changed. Every changed state should be one you meant to change; investigate any that aren't.
+2. Copy the approved images for those states to a temporary folder before updating them. Updating overwrites them, so this is the "before".
+3. Update the approved images and copy the new ones as the "after".
+4. Combine each pair into one side-by-side image, labeled Before and After, with a heading for each state. Use one image per change, not a separate file per screenshot.
+5. Look at the image yourself before sending it. Check that the fix worked and that nothing else got worse, such as an overlap in another state.
+6. Send the image in the conversation and say in words what changed, including any small side effects.
+
+Show only the states that changed, at the sizes where they changed. Keep these images out of the repo.
+
 ## UI standards
 
 **Stability**
