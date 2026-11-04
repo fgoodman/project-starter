@@ -8,7 +8,7 @@ Google sign-in on the client, token checks on the Worker, and a local emulator s
 
 ## Steps
 
-Pick the project's name wherever `my-app` appears, and a unique emulator port wherever `9109` appears.
+Pick the project's name wherever `my-app` appears, its domain wherever `my-app.com` appears, and a unique emulator port wherever `9109` appears.
 
 ### 1. Install
 
@@ -382,6 +382,66 @@ app.get('/api/me', requireAuth, (c) => c.json({ uid: c.get('uid') }));
 3. Add your domain under Authentication → Settings → Authorized domains.
 4. Fill in `client/.env.production`, and set `FIREBASE_PROJECT_ID` in `server/wrangler.jsonc`.
 
+### 8. Sign-in on your own domain
+
+By default, Google's sign-in screen says "to continue to my-app.firebaseapp.com". This step makes it name the app's own domain. Firebase recommends this approach: serve its sign-in pages from your domain and point `authDomain` there. Sign-in then also stops depending on another site's storage, which Safari blocks.
+
+**Source:** `percolatus/functions/__/[[path]].ts` and `nomp/functions/__/[[path]].ts`.
+
+Before starting, check:
+
+- Where the app is hosted, and its production domain
+- Which folder the host builds from. For Cloudflare Pages this is the Root directory setting, which the [deploy recipe](deploy.md) leaves as the repo root
+- Whether sign-in uses `signInWithPopup` or `signInWithRedirect`. This recipe uses the popup, and both go through these pages
+- Whether a service worker handles fetches, because it must not catch `/__/` paths. The one in [push notifications](push-notifications.md) has no fetch handler
+
+1. Proxy everything under `/__/` to `https://my-app.firebaseapp.com`, keeping the path and query.
+
+   On Cloudflare Pages, create `functions/__/[[path]].ts` in the folder Pages builds from, which is the repo root, not `client/`:
+
+   ```ts
+   // Firebase's sign-in pages, served from my-app.com so Google's sign-in screen names our domain
+   // instead of my-app.firebaseapp.com. client/src/lib/firebase.ts points authDomain here in production.
+   // Pages builds from the repo root, so this has to stay in the root's functions/.
+   export const onRequest = ({ request }: { request: Request }) => {
+     const { pathname, search } = new URL(request.url);
+     return fetch(new Request(new URL(pathname + search, 'https://my-app.firebaseapp.com'), request));
+   };
+   ```
+
+   Anything that runs `wrangler pages deploy` by hand must run from the folder that contains `functions/`, or the function is left out. The starter's `deploy` script in `client/package.json` already deploys from the repo root.
+
+   On Firebase Hosting with a custom domain, no proxy is needed. On Vercel or Netlify, use a rewrite rule instead.
+
+2. In `client/src/lib/firebase.ts`, use the app's domain only in production, so localhost and preview deploys keep working without the proxy:
+
+   ```ts
+   authDomain: location.hostname === 'my-app.com' ? 'my-app.com' : import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+   ```
+
+3. Check it locally. Build the client, then run this from the repo root:
+
+   ```bash
+   npx wrangler pages dev client/dist
+   ```
+
+   - `/__/auth/handler` returns Firebase's HTML with a 200.
+   - `/__/auth/handler.js` returns a 200.
+   - The app's own pages still load.
+
+   A 404 for `/__/firebase/init.json` is fine, because it only exists when the project uses Firebase Hosting. Stop the server afterwards.
+
+4. In the project README's Firebase setup, note that sign-in goes through `functions/__/`, and that the redirect URI in the next step is needed for it.
+
+5. By hand:
+   1. In Google Cloud Console → APIs & Services → Credentials, open "Web client (auto created by Google Service)".
+   2. Under Authorized redirect URIs, add `https://my-app.com/__/auth/handler`, and keep the `firebaseapp.com` one.
+   3. Save, and wait a few minutes before deploying.
+   4. Check that `my-app.com` is in Firebase → Authentication → Settings → Authorized domains.
+   5. After deploying, sign out and back in. The Google screen should say "to continue to my-app.com".
+
+   If sign-in fails with `redirect_uri_mismatch`, the URI isn't saved or hasn't taken effect yet.
+
 ## Check it works
 
 1. Run `npm test`, `npm run build` and `npm audit`.
@@ -390,4 +450,6 @@ app.get('/api/me', requireAuth, (c) => c.json({ uid: c.get('uid') }));
 4. Sign in on the emulator, then call `/api/me` with `Authorization: Bearer <token>`, using `await user.getIdToken()`. It returns 200 with the user's uid.
 5. Signing out sets `store.auth.user` to null.
 
-Google's real popup and a real Google-signed token can only be tested against a real Firebase project.
+6. On the production domain, Google's sign-in screen says "to continue to my-app.com".
+
+Google's real popup, a real Google-signed token and the custom sign-in domain can only be tested against a real Firebase project.
